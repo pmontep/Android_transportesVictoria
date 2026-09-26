@@ -15,6 +15,8 @@ import com.pointguatemala.transportesvictoria.data.model.ResetPasswordRequest
 import com.pointguatemala.transportesvictoria.data.model.ResetPasswordResponse
 import com.pointguatemala.transportesvictoria.data.model.VerifyOtpRequest
 import com.pointguatemala.transportesvictoria.data.model.VerifyOtpResponse
+import com.pointguatemala.transportesvictoria.data.model.EliminacionDatosRequest
+import com.pointguatemala.transportesvictoria.data.model.EliminacionDatosResponse
 import com.pointguatemala.transportesvictoria.data.model.MensajeResponse
 import com.pointguatemala.transportesvictoria.data.model.RefreshTokenResponse
 import com.pointguatemala.transportesvictoria.data.model.PaginatedResponse
@@ -167,6 +169,12 @@ interface ApiService {
     suspend fun logout(
         @Header("Authorization") authorization: String
     ): Response<MensajeResponse>
+
+    @POST("api/solicitar-eliminacion-datos")
+    suspend fun solicitarEliminacionDatos(
+        @Header("Authorization") authorization: String,
+        @Body request: EliminacionDatosRequest
+    ): Response<EliminacionDatosResponse>
 
     /**
      * Cambia la contraseña del usuario autenticado.

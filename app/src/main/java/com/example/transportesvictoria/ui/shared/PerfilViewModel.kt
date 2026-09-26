@@ -14,7 +14,10 @@ import kotlinx.coroutines.launch
 data class PerfilUiState(
     val user: User,
     val isRefreshing: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val isEliminando: Boolean = false,
+    val eliminacionEnviada: Boolean = false,       // true tras 201
+    val eliminacionYaSolicitada: Boolean = false   // true tras 409
 )
 
 class PerfilViewModel(initialUser: User) : ViewModel() {
@@ -35,6 +38,28 @@ class PerfilViewModel(initialUser: User) : ViewModel() {
                 },
                 onFailure = { error ->
                     _uiState.update { it.copy(isRefreshing = false, errorMessage = error.message) }
+                }
+            )
+        }
+    }
+
+    fun solicitarEliminacion(motivo: String? = null) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isEliminando = true, errorMessage = null) }
+            repository.solicitarEliminacionDatos(motivo).fold(
+                onSuccess = {
+                    _uiState.update { it.copy(isEliminando = false, eliminacionEnviada = true) }
+                },
+                onFailure = { error ->
+                    if (error.message == "DATA_DELETION_ALREADY_REQUESTED") {
+                        _uiState.update {
+                            it.copy(isEliminando = false, eliminacionYaSolicitada = true)
+                        }
+                    } else {
+                        _uiState.update {
+                            it.copy(isEliminando = false, errorMessage = error.message)
+                        }
+                    }
                 }
             )
         }

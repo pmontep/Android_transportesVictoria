@@ -2,6 +2,8 @@ package com.pointguatemala.transportesvictoria.data.repository
 
 import android.util.Log
 import com.pointguatemala.transportesvictoria.data.model.CambiarPasswordRequest
+import com.pointguatemala.transportesvictoria.data.model.EliminacionDatosRequest
+import com.pointguatemala.transportesvictoria.data.model.EliminacionDatosResponse
 import com.pointguatemala.transportesvictoria.data.model.User
 import com.pointguatemala.transportesvictoria.data.network.RetrofitClient
 import com.pointguatemala.transportesvictoria.data.session.SessionManager
@@ -105,6 +107,45 @@ class PerfilRepository {
                     else -> "Error ${response.code()}: ${response.message()}"
                 }
                 Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "  ✗ ${e::class.simpleName} — ${e.message}")
+            Result.failure(Exception("No se pudo conectar al servidor."))
+        }
+    }
+
+    /**
+     * Registra una solicitud de eliminación de datos para la cuenta autenticada.
+     * POST /api/solicitar-eliminacion-datos
+     * 201 → solicitud registrada (no elimina nada de inmediato).
+     * 409 → ya existe una solicitud activa → Result.failure con "DATA_DELETION_ALREADY_REQUESTED".
+     */
+    suspend fun solicitarEliminacionDatos(motivo: String? = null): Result<EliminacionDatosResponse> {
+        return try {
+            Log.d(tag, "→ solicitarEliminacionDatos")
+            val response = apiService.solicitarEliminacionDatos(
+                authorization = SessionManager.authHeader,
+                request       = EliminacionDatosRequest(motivo = motivo)
+            )
+            Log.d(tag, "  HTTP ${response.code()} ${response.message()}")
+
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null) {
+                    Log.d(tag, "  ✓ solicitud registrada id=${body.solicitud?.id}")
+                    Result.success(body)
+                } else {
+                    Result.failure(Exception("Respuesta vacía del servidor"))
+                }
+            } else {
+                val rawError = response.errorBody()?.string() ?: ""
+                Log.e(tag, "  ✗ Error HTTP ${response.code()}: $rawError")
+                if (response.code() == 409) {
+                    Result.failure(Exception("DATA_DELETION_ALREADY_REQUESTED"))
+                } else {
+                    val errorMsg = parsearMensaje(rawError) ?: "Error ${response.code()}"
+                    Result.failure(Exception(errorMsg))
+                }
             }
         } catch (e: Exception) {
             Log.e(tag, "  ✗ ${e::class.simpleName} — ${e.message}")
