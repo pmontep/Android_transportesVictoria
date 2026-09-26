@@ -1,0 +1,813 @@
+INVENTARIO DE FUNCIONALIDADES - TRANSPORTES VICTORIA iOS
+=========================================================
+
+Documento generado para replicación en Android con paridad funcional.
+Fecha: 2026-06-19
+Fuente: Revisión completa del código fuente iOS.
+
+INDICE
+------
+1.  Login (AuthViewController)
+2.  Registro (RegisterViewController)
+3.  Viajes asignados - Conductor (ViajesAsignadosViewController)
+4.  Detalle viaje - Conductor (DetalleViajeViewController)
+5.  Usuarios en entrenamiento - Reclutador (ReclutadorViewController)
+6.  Mis solicitudes - Usuario (UsuarioViewController)
+7.  Crear solicitud de viaje - Usuario (CreaSolicitudViewController)
+8.  Detalle solicitud - Usuario (DetalleSolicitudViewController)
+9.  Calificar viaje (CalificarViajeViewController)
+10. Terminos y condiciones (TerminosViewController)
+11. Mapa de ubicacion (MapaUbicacionViewController)
+12. Soporte (SoporteViewController)
+13. Perfil (PerfilViewController)
+14. Cambiar contrasena desde perfil (CambiarContrasenaPerfilViewController)
+15. Recuperar contrasena (RecuperarContrasenaViewController)
+16. Aviso modal (AvisoViewController y variantes)
+17. Tab bar controllers por rol
+18. Endpoints HTTP utilizados
+19. Notas importantes para implementacion Android
+
+
+---------------------------------------------------------------
+1. LOGIN (AuthViewController)
+---------------------------------------------------------------
+Pantalla: Iniciar sesion
+Rol: Cualquiera (sin autenticar)
+
+Elementos UI:
+- Logo TransportesVictoria
+- Campo email
+- Campo contrasena con boton "ojo" para mostrar/ocultar
+- Boton "Iniciar sesion" (amarillo)
+- ActivityIndicator
+- Card con sombra contiene todos los elementos
+
+Acciones:
+- Validacion al perder foco: limpia bordes rojos al volver a escribir.
+- Teclado se desplaza automaticamente para no tapar el boton.
+- Tap "Iniciar sesion":
+  * Valida que email y contrasena no esten vacios.
+  * Si invalido: bordes rojos + alerta.
+  * Si valido: POST /api/loginapi
+    - 200: extrae token y rol, navega segun rol.
+    - 401: "Correo o contrasena incorrectos".
+    - 403: "Tu cuenta aun no ha sido activada por un reclutador".
+    - Otro: "Error [codigo]. Intenta de nuevo".
+  * Mientras carga: spinner + boton deshabilitado.
+- Tap ojo: alterna isSecureTextEntry, cambia icono eye / eye.slash.
+
+Navegacion:
+- Entrante: primera pantalla (SceneDelegate).
+- Saliente segun rol:
+  * "usuario"    -> UsuarioTabBarController
+  * "conductor"  -> ConductorTabBarController
+  * "reclutador" -> ReclutadorTabBarController
+
+
+---------------------------------------------------------------
+2. REGISTRO (RegisterViewController)
+---------------------------------------------------------------
+Pantalla: Registro de cuenta
+Rol: Cualquiera (sin autenticar)
+
+Elementos UI:
+- Titulo "Registro" + linea amarilla.
+- Campos: Nombre, Apellidos.
+- Picker Empresa (datos desde API).
+- SegmentedControl: "Empleado" / "En entrenamiento".
+- Carnet (visible solo si Empleado).
+- DPI (visible solo si En entrenamiento).
+- Telefono (phonePad).
+- Correo (emailAddress).
+- Direccion (texto libre).
+- Picker Departamento (22 departamentos de Guatemala).
+- Switch "Acepto los acuerdos de uso" con link azul subrayado.
+- Boton "Registrar" (azul).
+- Boton "Inicia sesion" en pie (vuelve atras).
+
+Comportamientos:
+- Cambio en segmented:
+  * 0 (Empleado): muestra carnet, oculta DPI.
+  * 1 (Entrenamiento): oculta carnet, muestra DPI.
+  * Transicion animada (UIView.animate).
+- Link "acuerdos de uso" -> TerminosViewController (push si hay nav, modal si no).
+- Carga inicial de empresas: GET /api/empresas (sin auth).
+  * Placeholder "Cargando empresas..." -> "Error al cargar empresas" si falla.
+  * Preselecciona la primera empresa.
+  * Picker muestra nombre_corto, guarda idL internamente.
+
+Validacion al registrar:
+- Obligatorios: nombre, apellidos, telefono (8+ digitos, solo numeros),
+  correo (formato), direccion, departamento, empresa.
+- Si Empleado: carnet obligatorio.
+- Si Entrenamiento: DPI obligatorio.
+- Switch acuerdos: si OFF -> alerta "Debes aceptar los acuerdos de uso".
+- Campos invalidos: borde rojo 1.5px + shake.
+
+Envio POST /api/loginRegister con body:
+  name, lastname, email,
+  tipo_usuario ("1" empleado | "0" entrenamiento),
+  empresa_idL, departamento, direccion, telefono,
+  accepted_terms: true,
+  carnet (si empleado) | dpi (si entrenamiento)
+
+Respuestas:
+- 201: pop al Login con mensaje "Tu cuenta esta en espera de activacion...".
+- 422: "El correo ya esta registrado o hay un campo invalido".
+- 403: "La empresa seleccionada no esta activa. Contacta a tu reclutador".
+- Otro: usa message del JSON.
+
+Navegacion:
+- Entrante: desde Login (push).
+- Saliente: pop a Login (link o registro exitoso).
+
+
+---------------------------------------------------------------
+3. VIAJES ASIGNADOS - CONDUCTOR (ViajesAsignadosViewController)
+---------------------------------------------------------------
+Pantalla: Mis viajes
+Rol: Conductor
+
+Elementos UI:
+- Logo + linea amarilla.
+- Titulo "Mis viajes" + boton refresh.
+- Header columnas: "Fecha / Hora", "Ruta / Estado", "Ver".
+- TableView (alto dinamico, sin separadores).
+- Empty label "No tienes viajes asignados hoy".
+- ActivityIndicator central.
+- Pull-to-refresh amarillo.
+
+Celda ViajeCell:
+- Fecha y hora del viaje.
+- Nombre de ruta + estado del viaje.
+- Boton/enlace "Ver detalle".
+
+Carga:
+- viewWillAppear -> cargarViajes().
+- Pull-to-refresh y boton refresh tambien recargan.
+- GET /api/conductor/viajes (Bearer).
+- Respuesta esperada: { data: [ViajeModel] }.
+- Vacio -> empty label.
+- Error -> empty label con mensaje.
+
+Acciones:
+- Tap celda o "Ver" -> push DetalleViajeViewController con el objeto viaje.
+
+Navegacion:
+- Entrante: tab "Viajes" del ConductorTabBarController.
+- Saliente: push a DetalleViajeViewController.
+
+
+---------------------------------------------------------------
+4. DETALLE VIAJE - CONDUCTOR (DetalleViajeViewController)
+---------------------------------------------------------------
+Pantalla: Detalle del viaje
+Rol: Conductor
+
+Elementos UI:
+- Navigation bar amarillo + titulo + icono bus.fill (decorativo).
+- ScrollView con:
+  * Card info: Ruta, Fecha, Hora, Estado, Total Pasajeros.
+  * Boton "Iniciar viaje" (amarillo si estado "programado").
+  * Boton "Finalizar viaje" (amarillo si "en curso", gris si "completado").
+  * Titulo "Pasajeros".
+  * TableView embebida sin scroll interno.
+- ActivityIndicator.
+
+Celda PasajeroCell:
+- Nombre y apellido, correo, telefono.
+- Checkbox "Abordar" si no abordado.
+- Hora de abordaje en gris si ya abordado.
+- Boton "Ver en mapa" si tiene lat/lng.
+
+Reglas de estado:
+- "programado": Iniciar viaje activo, Finalizar gris.
+- "en curso" / "iniciado": Finalizar activo.
+- "completado" / "finalizado": ambos botones grises, tabla bloqueada.
+
+Acciones:
+- Iniciar viaje:
+  * Confirmacion "Iniciar viaje? El viaje comenzara ahora."
+  * PATCH /api/conductor/viajes/{idL}/iniciar.
+  * 200: estado -> "En curso", refresca UI.
+  * Falla: revierte UI + alerta.
+- Finalizar viaje:
+  * Confirmacion "Finalizar viaje? Se marcara como completado."
+  * PATCH /api/conductor/viajes/{idL}/finalizar.
+  * 200: estado -> "Completado".
+- Abordar pasajero (toggle):
+  * Cambio optimista en UI.
+  * PATCH /api/conductor/solicitud/{solicitudId}/abordar.
+  * 200: si paso a abordado, asigna hora actual (HH:mm). Refresca celda.
+  * Falla: revierte. Si mensaje contiene "finalizado"/"modificar":
+    "Viaje completado. No se puede modificar la lista". Otro: "Sin conexion...".
+- Ver en mapa (pasajero):
+  * Push MapaUbicacionViewController con lat, lng, nombre completo y direccion.
+  * Sin boton "Abrir en Apple Maps".
+
+Navegacion:
+- Entrante: push desde ViajesAsignadosViewController.
+- Saliente: push a MapaUbicacionViewController.
+
+
+---------------------------------------------------------------
+5. USUARIOS EN ENTRENAMIENTO - RECLUTADOR (ReclutadorViewController)
+---------------------------------------------------------------
+Pantalla: Usuarios en entrenamiento
+Rol: Reclutador
+
+Elementos UI:
+- Logo + linea amarilla.
+- Campo busqueda con lupa y boton X (clear).
+- Pills de filtro: "Inactivos" (0), "Activos" (1), "Todos" ("") + boton refresh.
+- Titulo "Usuarios en entrenamiento" + contador "X registros".
+- Header columnas: "Nombre / Correo", "DPI / Ruta", "Accion".
+- TableView (auto, estimado 110px).
+- ActivityIndicator.
+
+Celda ReclutadorCell:
+- Nombre y apellido, correo, DPI, Ruta.
+- Switch Activo/Inactivo.
+
+Busqueda:
+- Listener editingChanged + debounce 0.3s.
+- GET /api/reclutador/usuarios?page=1&status=[filtro]&query=[busqueda].
+- query URL-encoded; status siempre se envia ("0", "1" o "").
+
+Filtros:
+- Inicial: "Todos".
+- Cambiar filtro: actualiza estilos de pills y recarga.
+
+Toggle de estado:
+- Confirmacion "Desactivar usuario?" / "Activar usuario?" con "[Nombre] [Apellido]".
+- Si confirma:
+  * Cambio optimista en UI.
+  * PATCH /api/reclutador/usuarios/{id}/toggle-status.
+  * 200: si el filtro actual ya no incluye al usuario, lo quita de la lista.
+  * Falla: revierte UI + alerta "No se pudo cambiar el estado".
+  * Actualiza contador.
+
+Navegacion:
+- Entrante: tab "Inicio" del ReclutadorTabBarController.
+- Saliente: no navega (solo toggle local).
+
+
+---------------------------------------------------------------
+6. MIS SOLICITUDES - USUARIO (UsuarioViewController)
+---------------------------------------------------------------
+Pantalla: Mis solicitudes de viaje
+Rol: Usuario
+
+Elementos UI:
+- Logo + linea amarilla.
+- Boton "Solicitar viaje" (amarillo + icono car.fill).
+- Titulo "Mis solicitudes de viaje" + boton refresh.
+- Header columnas: "Fecha / Hora", "Ruta / Estado viaje", "Detalle".
+- TableView (auto, estimado 96px).
+- Spinner inicial centrado.
+- Empty label "No hay solicitudes".
+- Pull-to-refresh amarillo.
+
+Celda SolicitudCell:
+- Fecha y hora.
+- Ruta solicitada.
+- Estado solicitud + estado viaje.
+- Calificacion en estrellas si esta calificada.
+- Enlace "Ver detalle".
+
+Carga:
+- viewWillAppear -> cargarSolicitudes().
+- Pull-to-refresh y boton refresh tambien recargan.
+- Boton refresh muestra animacion de rotacion durante la carga.
+- GET /api/viajes/mis-solicitudes?page=1&query= (Bearer).
+- Filtra duplicados por idL.
+- Primer carga: muestra spinner grande, oculta tabla.
+
+Acciones:
+- "Solicitar viaje" -> push CreaSolicitudViewController.
+- Tap celda / "Ver detalle" -> push DetalleSolicitudViewController con solicitudId.
+
+Navegacion:
+- Entrante: tab "Inicio" del UsuarioTabBarController.
+
+
+---------------------------------------------------------------
+7. CREAR SOLICITUD DE VIAJE - USUARIO (CreaSolicitudViewController)
+---------------------------------------------------------------
+Pantalla: Solicitar viaje
+Rol: Usuario
+
+Elementos UI:
+- Titulo "Solicitar viaje" (nav bar).
+- Campo Ruta: inputView UIPickerView, accesoryView con boton "Listo".
+  * Si una ruta: pre-selecciona y deshabilita.
+  * Si varias: permite elegir.
+  * Label de error rojo si vacio al enviar (shake).
+- Campo Hora: picker dependiente de la ruta.
+- Campo Observaciones (opcional).
+- Boton "Enviar" (azul). Se habilita con ruta Y hora.
+
+Flujo:
+1. Toca campo Ruta -> GET /api/viajes/mis-rutas (Bearer).
+   * 200: lista de rutas.
+   * 403: "No tienes rutas asignadas".
+   * 401: "Sesion expirada".
+   * 404: "Endpoint no encontrado".
+   * Otro: "Error del servidor".
+2. Selecciona ruta -> cargarHorariosDeRuta(nombreRuta).
+3. GET /api/viajes/horarios?ruta=[nombreRuta] (Bearer).
+   * 200: lista de horas.
+   * 403: "La ruta no esta asignada a tu perfil".
+   * Otro: "No se pudieron cargar los horarios".
+4. Selecciona hora.
+5. Ingresa observaciones (opcional).
+6. Tap "Enviar" -> POST /api/viajes/solicitar.
+   * Body: rutaSolicitada, horaSolicitud, observaciones (si hay).
+   * 200/201: aviso "Solicitud enviada" + pop.
+   * 409: "Solicitud duplicada".
+   * 400 segun error_code:
+     - HORARIO_CERRADO: "El horario de solicitudes ya cerro (17:00)".
+     - HORARIO_NO_INICIADO: "El horario aun no ha abierto".
+     - HORA_INVALIDA: "La hora seleccionada no esta disponible para esta ruta".
+   * 403: "Esta ruta no esta asignada a tu perfil".
+
+Navegacion:
+- Entrante: push desde UsuarioViewController.
+- Saliente: pop al anterior (cancelar o enviar exitoso).
+
+
+---------------------------------------------------------------
+8. DETALLE SOLICITUD - USUARIO (DetalleSolicitudViewController)
+---------------------------------------------------------------
+Pantalla: Detalle de solicitud de viaje
+Rol: Usuario
+
+Elementos UI:
+- Logo pequeno + linea amarilla.
+- Boton atras (chevron.left).
+- Titulo + boton refresh.
+- Badge de estado (verde=activa, rojo=cancelada, gris=otro).
+- Card "Datos del viaje": Ruta, Estado viaje, Abordo (Si/No), Observaciones.
+- Card "Informacion de la solicitud": Solicitado el, Estado.
+- Card "Tu calificacion" (solo si viaje completado):
+  * Si calificado: estrellas + comentario.
+  * Si no: boton "Calificar viaje" (amarillo).
+- Boton "Cancelar solicitud" (rojo): visible si estado solicitud NO es "completado/cancelada".
+- Boton "Volver a mis solicitudes" (negro).
+
+Estados:
+- Solicitud (normalizado):
+  * activa/pendiente/confirmada: badge verde, boton cancelar visible.
+  * cancelada/cancelado/rechazado: badge rojo, boton cancelar oculto.
+- Viaje:
+  * completado: muestra card calificacion + oculta boton cancelar.
+
+Acciones:
+- Refresh: GET /api/viajes/mis-solicitudes/{idL}.
+- Calificar viaje: presenta CalificarViajeViewController modal (pageSheet con grabber)
+  con onCompletado callback que actualiza UI optimista + refetch.
+- Cancelar solicitud:
+  * Muestra ConfirmarCancelacionViewController.
+  * Si confirma: DELETE /api/viajes/mis-solicitudes/{idL}.
+    - 200/204: muestra CancelacionExitosaViewController, al tocar "Entendido" hace pop.
+    - Falla: alerta + boton rehabilitado.
+
+Navegacion:
+- Entrante: push desde UsuarioViewController o SolicitudesViewController.
+- Saliente: pop al anterior.
+
+
+---------------------------------------------------------------
+9. CALIFICAR VIAJE (CalificarViajeViewController)
+---------------------------------------------------------------
+Pantalla: Calificar viaje (modal pageSheet con grabber)
+Rol: Usuario
+
+Elementos UI:
+- Titulo "Calificar viaje" + subtitulo.
+- 5 estrellas clickeables (36pt, amarillas).
+- Label "Comentario (opcional)" + TextView limite 500 caracteres + contador "0 / 500".
+- Boton "Enviar calificacion" (amarillo, 50px alto).
+- Boton "Cancelar" (texto gris).
+- ActivityIndicator.
+
+Acciones:
+- Seleccionar estrella -> calificacionSeleccionada = tag (1..5).
+- Texto: se trunca a 500 si excede; contador en tiempo real.
+- Enviar:
+  * Valida estrellas (1..5).
+  * Si comentario vacio: envia nil.
+  * PATCH /api/viajes/mis-solicitudes/{idL}/calificar.
+    - Body: { calificacion: int, comentario_calificacion?: string }.
+    - 200: cierra modal + onCompletado(calificacion, comentario).
+    - Falla: alerta + botones rehabilitados.
+- Cancelar: dismiss sin guardar.
+
+Navegacion:
+- Entrante: modal desde DetalleSolicitudViewController.
+- Saliente: dismiss.
+
+
+---------------------------------------------------------------
+10. TERMINOS Y CONDICIONES (TerminosViewController)
+---------------------------------------------------------------
+Pantalla: Acuerdos de uso
+Rol: Cualquiera
+
+Elementos UI:
+- Boton "Volver" (arrow.left + " Volver").
+- Titulo "Acuerdos de uso".
+- ScrollView con texto multilinea.
+- ActivityIndicator.
+- Navigation bar oculto.
+
+Carga:
+- GET /api/terminos (sin auth).
+- json["acuerdo_uso"] contiene el texto.
+- Si vacio: "Aun no hay un acuerdo de uso configurado...".
+- Si red: "No se pudieron cargar los terminos.\n[error]".
+- Si parse: "No se pudieron leer los terminos".
+
+Navegacion:
+- Volver: pop si hay navigationController con 1+ vistas, dismiss si no.
+
+
+---------------------------------------------------------------
+11. MAPA DE UBICACION (MapaUbicacionViewController)
+---------------------------------------------------------------
+Pantalla: titulo dinamico (Direccion principal, Direccion secundaria, nombre pasajero)
+Rol: Usuario / Conductor
+
+Elementos UI:
+- Boton "Volver" (chevron.left).
+- MKMapView con zoom cercano (span ~0.005).
+- Anotacion con MKMarkerAnnotationView amarillo (mappin glyph).
+- Callout con titulo y direccion.
+- Boton "Abrir en Apple Maps" (solo si mostrarBotonAppleMaps = true).
+
+Init parametros: lat, lng, titulo, direccion, mostrarBotonAppleMaps.
+
+Acciones:
+- Volver: pop o dismiss.
+- "Abrir en Apple Maps": MKMapItem.openInMaps con mapType .standard.
+
+Navegacion:
+- Entrante: PerfilViewController (mostrarBotonAppleMaps=false desde admin),
+  DetalleViajeViewController pasajero (mostrarBotonAppleMaps=false).
+- Saliente: pop / dismiss.
+
+
+---------------------------------------------------------------
+12. SOPORTE (SoporteViewController)
+---------------------------------------------------------------
+Pantalla: Soporte
+Rol: Cualquiera autenticado
+
+Elementos UI:
+- Titulo "Necesitas ayuda?".
+- Subtitulo "Contactanos por cualquiera de estos medios".
+- Card blanca:
+  * Correo + boton "Abrir".
+  * Telefono + boton "Abrir".
+  * WhatsApp + boton "Abrir".
+- Card horario (fondo amarillo suave) opcional.
+
+Carga:
+- GET /api/soporte (sin auth).
+- json: soporte_email, soporte_telefono, soporte_whatsapp.
+- Si error: mantiene valores default.
+
+Acciones (URL externas):
+- Correo: mailto:[email].
+- Telefono: tel://[solo digitos].
+- WhatsApp: https://wa.me/[solo digitos].
+
+Navegacion:
+- Entrante: tab "Soporte" de cualquier TabBarController.
+
+
+---------------------------------------------------------------
+13. PERFIL (PerfilViewController)
+---------------------------------------------------------------
+Pantalla: Mi perfil
+Rol: Cualquiera autenticado
+
+Elementos UI:
+- Avatar circular 100x100 (inicial si sin foto, imagen si hay URL).
+- Nombre completo + Badge de rol (Conductor/Usuario/Reclutador).
+- Card "Informacion personal": Correo, Telefono, Documento (TIPO VALOR).
+- Card "Empresa": Nombre y nombre corto.
+- Card "Direccion principal" (solo rol usuario): Ruta, Direccion, Departamento,
+  boton "Ver en mapa" (si hay lat/lng).
+- Card "Direccion secundaria" (solo si existe).
+- Boton "Cambiar contrasena" (amarillo, lock.fill).
+- Boton "Cerrar sesion" (negro).
+
+Reglas:
+- Conductor y reclutador: cards de direccion ocultadas (height=0).
+- Direccion secundaria: solo si existe en el modelo.
+
+Carga:
+- viewDidLoad: cargarDatos() + cargarPerfil().
+- cargarDatos(): lee SessionManager.shared.currentUser y rellena.
+- cargarPerfil(): GET /api/me (Bearer).
+  * 200: refresca.
+  * 403: alerta "Tu cuenta ha sido desactivada. Contacta a soporte".
+- Foto: GET por URL, dibuja UIImageView sobre el avatar.
+
+Acciones:
+- "Ver en mapa" (principal/secundaria) -> push MapaUbicacionViewController.
+- "Cambiar contrasena" -> push CambiarContrasenaPerfilViewController.
+- "Cerrar sesion":
+  * Confirmacion "Estas seguro?" (Si/No).
+  * Si Si: POST /api/logoutapi, limpia SessionManager y setea root a AuthViewController
+    con transicion cross dissolve.
+
+Notas:
+- Hay metodo cambiarFotoTapped() (UIImagePickerController + POST /api/perfil/foto)
+  preparado pero sin boton visible.
+
+Navegacion:
+- Entrante: tab "Perfil" de cualquier TabBarController.
+- Saliente: MapaUbicacion, CambiarContrasena, Login.
+
+
+---------------------------------------------------------------
+14. CAMBIAR CONTRASENA DESDE PERFIL (CambiarContrasenaPerfilViewController)
+---------------------------------------------------------------
+Pantalla: Cambiar contrasena
+Rol: Cualquiera autenticado
+
+Elementos UI:
+- Boton atras + titulo "Cambiar contrasena".
+- Card blanca:
+  * Campo "Contrasena actual".
+  * Campo "Nueva contrasena".
+  * Campo "Confirmar nueva contrasena".
+  * Boton "Cambiar contrasena" (amarillo).
+- ActivityIndicator.
+
+Validaciones:
+- Contrasena actual: no vacia.
+- Nueva: 8+ caracteres.
+- Confirmacion: igual a nueva.
+- Nueva distinta a actual.
+
+Envio:
+- POST /api/perfil/password con body
+  { current_password, password, password_confirmation } y Bearer token.
+- 200: alerta "Listo! Contrasena actualizada" + pop.
+- 400 con error_code WRONG_PASSWORD: "La contrasena actual es incorrecta".
+- 400/422: message del API.
+- Otro: "Error [codigo]".
+
+Navegacion:
+- Entrante: push desde PerfilViewController.
+
+
+---------------------------------------------------------------
+15. RECUPERAR CONTRASENA (RecuperarContrasenaViewController)
+---------------------------------------------------------------
+Pantalla: Recuperar contrasena
+Rol: Sin autenticar
+Flujo de 3 pasos en una misma vista, con indicador de pasos (Correo / Codigo / Contrasena).
+
+Paso 1 - Ingresa email:
+- Campo email.
+- Boton "Enviar codigo".
+- POST /api/forgot-password con { email }.
+  * 200: banner amarillo "Codigo enviado a [email]" (2.5s) -> Paso 2.
+  * 422: "Correo invalido".
+  * 500: "No pudimos enviar el correo".
+
+Paso 2 - Verifica codigo OTP:
+- Campo monospace centrado (kerning 8pt), placeholder "------", numberPad, max 6 digitos.
+- Boton "Verificar codigo" deshabilitado hasta 6 digitos.
+- POST /api/verify-otp con { email, code }.
+  * 200 y valid=true: Paso 3.
+  * 200 y valid=false: "El codigo es invalido o ha expirado".
+  * 400: "Codigo invalido".
+
+Paso 3 - Nueva contrasena:
+- Campos "Nueva contrasena" y "Confirmar contrasena" (8+ caracteres).
+- Boton "Cambiar contrasena".
+- POST /api/reset-password con { email, code, password, password_confirmation }.
+  * 200: alerta "Contrasena actualizada! Inicia sesion con tu nueva contrasena" + pop al Login.
+  * 400: "Codigo invalido o expirado".
+  * 404: "Usuario no encontrado".
+  * 422: "Las contrasenas no son validas".
+
+Teclado:
+- Listeners de show/hide. Si tapa el boton, desplaza vista hacia arriba (animado).
+- Tap fuera oculta teclado.
+
+Navegacion:
+- Entrante: desde Login.
+- Saliente: pop si hay anterior, dismiss si no.
+
+
+---------------------------------------------------------------
+16. AVISOS MODALES (AvisoViewController y variantes)
+---------------------------------------------------------------
+Componente reutilizable con fondo semi-transparente y card central de 270px.
+
+Estructura:
+- Circulo amarillo con icono.
+- Titulo bold + mensaje gris.
+- Linea separadora.
+- Boton izquierda (gray) + boton derecha (amarillo bold).
+
+Variantes:
+- AvisoViewController: alerta basica con dos botones.
+- ConfirmarCancelacionViewController: "Cancelar solicitud?" / "Esta accion no se puede deshacer".
+  Icono calendar.badge.minus rojo marron, fondo rosa suave, botones "Volver" / "Cancelar".
+- CancelacionExitosaViewController: "Solicitud cancelada" / "Puedes reagendar cuando quieras".
+  Icono amarillo, botones "Cerrar" / "Entendido".
+- SolicitudEnviadaViewController: "Listo para viajar!" / "Tu solicitud fue enviada".
+  Icono road.lanes amarillo, botones "Cerrar" / "Entendido".
+
+Presentacion modal fullScreen con fondo negro semitransparente.
+Callbacks: onConfirmar() / onEntendido().
+
+
+---------------------------------------------------------------
+17. TAB BAR CONTROLLERS POR ROL
+---------------------------------------------------------------
+Estilo comun: tab bar blanco, iconos gris normal / amarillo seleccionado.
+Cada tab contiene una UINavigationController con el VC como root.
+
+ConductorTabBarController:
+- Viajes  (bus.fill)            -> ViajesAsignadosViewController
+- Soporte (message.circle.fill) -> SoporteViewController
+- Perfil  (person.circle.fill)  -> PerfilViewController
+
+ReclutadorTabBarController:
+- Inicio  (house.circle.fill)   -> ReclutadorViewController
+- Soporte (message.circle.fill) -> SoporteViewController
+- Perfil  (person.circle.fill)  -> PerfilViewController
+
+UsuarioTabBarController:
+- Inicio  (house.circle.fill)   -> UsuarioViewController (desde storyboard)
+- Soporte (message.circle.fill) -> SoporteViewController
+- Perfil  (person.circle.fill)  -> PerfilViewController
+
+
+---------------------------------------------------------------
+18. ENDPOINTS HTTP UTILIZADOS
+---------------------------------------------------------------
+
+AUTENTICACION Y SESION
+- POST /api/loginapi
+  Body: email, password
+  200 -> { token, user }; 401 credenciales; 403 no activada.
+- POST /api/logoutapi
+  Bearer. Cierra sesion.
+
+REGISTRO
+- POST /api/loginRegister
+  Body: name, lastname, email, tipo_usuario (0/1), empresa_idL,
+        departamento, direccion, telefono, accepted_terms,
+        carnet o dpi.
+  201 creado; 422 validacion; 403 empresa inactiva.
+
+EMPRESAS Y CONFIGURACION (sin auth)
+- GET /api/empresas         -> { empresas: [ { idL, nombre_corto } ] }
+- GET /api/soporte          -> { soporte_email, soporte_telefono, soporte_whatsapp }
+- GET /api/terminos         -> { acuerdo_uso: "texto" }
+
+PERFIL
+- GET  /api/me              Bearer. 200 user completo; 403 desactivado.
+- POST /api/perfil/foto     multipart "foto". 200 { profile_photo_url }.
+- POST /api/perfil/password Bearer. Body { current_password, password,
+                            password_confirmation }. 200 ok;
+                            400 error_code WRONG_PASSWORD; 422 validacion.
+
+SOLICITUDES DE VIAJE (Usuario)
+- GET    /api/viajes/mis-solicitudes?page=1&query=   Bearer -> { data: [Solicitud] }.
+- GET    /api/viajes/mis-solicitudes/{idL}           Bearer -> { solicitud } o Solicitud directa.
+- POST   /api/viajes/solicitar                       Bearer. Body { rutaSolicitada,
+                                                     horaSolicitud, observaciones? }.
+                                                     200/201 ok; 409 duplicada;
+                                                     400 con error_code HORARIO_CERRADO /
+                                                     HORARIO_NO_INICIADO / HORA_INVALIDA;
+                                                     403 ruta no asignada.
+- PATCH  /api/viajes/mis-solicitudes/{idL}/calificar Bearer. Body
+                                                     { calificacion, comentario_calificacion? }.
+- DELETE /api/viajes/mis-solicitudes/{idL}           Bearer. 200/204 ok.
+
+RUTAS Y HORARIOS (Usuario)
+- GET /api/viajes/mis-rutas               Bearer -> { rutas: [...] }.
+                                          401 sesion; 403 sin rutas; 404 endpoint.
+- GET /api/viajes/horarios?ruta=[nombre]  Bearer -> { horarios: ["HH:mm", ...] }.
+                                          403 ruta no asignada.
+
+VIAJES (Conductor)
+- GET   /api/conductor/viajes[?fecha=YYYY-MM-DD]                 Bearer -> { data: [Viaje] }.
+- PATCH /api/conductor/viajes/{idL}/iniciar                       Bearer.
+- PATCH /api/conductor/viajes/{idL}/finalizar                     Bearer.
+- PATCH /api/conductor/solicitud/{solicitudId}/abordar            Bearer.
+
+USUARIOS (Reclutador)
+- GET   /api/reclutador/usuarios?page=1&status=[0|1|]&query=[q]  Bearer -> { data: [User] }.
+- PATCH /api/reclutador/usuarios/{id}/toggle-status              Bearer.
+
+RECUPERACION DE CONTRASENA (sin auth)
+- POST /api/forgot-password   { email }                    -> { message }.
+- POST /api/verify-otp        { email, code }              -> { message, valid }.
+- POST /api/reset-password    { email, code, password,
+                                password_confirmation }    -> { message }.
+
+Convenciones:
+- Headers comunes: Accept: application/json y Content-Type: application/json (cuando hay body).
+- Headers protegidos: Authorization: Bearer [token].
+
+
+---------------------------------------------------------------
+19. NOTAS IMPORTANTES PARA IMPLEMENTACION ANDROID
+---------------------------------------------------------------
+
+NAVEGACION
+- Login es entry point.
+- Tras autenticar, no se vuelve a Login con back (cambia el rootViewController).
+- Cada rol tiene su tab bar. Dentro de cada tab hay un nav stack.
+
+SESION
+- SessionManager guarda token y currentUser en memoria.
+- En Android: usar DataStore o EncryptedSharedPreferences.
+- Persistir el token entre sesiones segun politica del proyecto.
+
+AUTORIZACION
+- Header Authorization: Bearer [token] en todos los endpoints protegidos.
+- Sin token = no llamar a endpoints protegidos; en Android, interceptor de OkHttp.
+
+VALIDACIONES (cliente)
+- Email con @ y punto.
+- Telefono 8+ digitos numericos.
+- Contrasena 8+ caracteres.
+- Codigo OTP 6 digitos numericos.
+- Campos invalidos: borde rojo + animacion shake.
+
+LOADERS
+- ActivityIndicator durante llamadas (CircularProgressIndicator en Compose).
+- Pull-to-refresh en listas (SwipeRefreshLayout o pullRefresh modifier).
+- Botones deshabilitados con opacidad reducida durante operacion.
+- Icono refresh con rotacion continua (animateFloat con tween infinite).
+
+DEBOUNCE
+- Busqueda de usuarios: 0.3s.
+
+OPTIMISMO UI
+- Toggle activo/inactivo (reclutador) y abordar pasajero (conductor):
+  cambiar UI primero, revertir si falla. Mejora UX percibido.
+
+DEDUPLICACION
+- En Mis Solicitudes (usuario) se deduplica por idL en cliente.
+
+ERRORES HTTP - CONVENCIONES
+- 401 sesion: forzar logout o pedir re-login.
+- 403: mensajes contextuales (no activada / ruta no asignada / viaje finalizado).
+- 404: "Endpoint no encontrado".
+- 409: solicitud duplicada (mismo dia).
+- 422: validacion del servidor (usar message del JSON).
+- 500: error generico del servidor.
+- 400 con error_code en body: usar codigo para mensajes especificos
+  (HORARIO_CERRADO, HORARIO_NO_INICIADO, HORA_INVALIDA, WRONG_PASSWORD).
+
+PALETA DE COLORES
+- Amarillo principal: #F5A623 (RGB 245, 166, 35)
+- Negro principal:    #1C1C1E
+- Gris secundario:    #8E8E93
+- Rojo (errores):     #E53935
+- Verde (exito):      #2E7D32
+- Fondos:             #F2F2F7 (gris claro), #FFFFFF (blanco)
+
+ICONOS
+- iOS usa SF Symbols. Mapeo sugerido a Material Icons:
+  * car.fill           -> ic_directions_car
+  * bus.fill           -> ic_directions_bus
+  * house.circle.fill  -> ic_home
+  * person.circle.fill -> ic_account_circle
+  * message.circle.fill-> ic_chat
+  * envelope.fill      -> ic_email
+  * phone.fill         -> ic_phone
+  * lock.fill          -> ic_lock
+  * mappin             -> ic_place
+  * star / star.fill   -> ic_star_border / ic_star
+  * arrow.clockwise    -> ic_refresh
+  * eye / eye.slash    -> ic_visibility / ic_visibility_off
+
+REGLAS DE NEGOCIO (resumidas, validar con backend)
+- Horario disponible para solicitudes: 18, 19, 20, 21 horas.
+- Corte: 17:00 (no se aceptan solicitudes despues).
+- Una solicitud activa por usuario por dia.
+- Cada usuario tiene 1 o 2 rutas asignadas (no puede solicitar otras).
+- Si una solicitud se cancela y el viaje queda sin pasajeros confirmados,
+  el viaje se marca como cancelado.
+
+
+FIN DEL DOCUMENTO
+==================
+Este archivo contiene todas las pantallas, elementos, acciones, validaciones
+y endpoints HTTP relevantes para replicar la app iOS en Android con paridad
+funcional. Para detalles especificos, consultar el codigo fuente en
+TransportesVictoria/Core/Auth/ y TransportesVictoria/Services/.
