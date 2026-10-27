@@ -27,6 +27,7 @@ import com.pointguatemala.transportesvictoria.data.model.MeResponse
 import com.pointguatemala.transportesvictoria.data.model.SolicitudRequest
 import com.pointguatemala.transportesvictoria.data.model.SolicitudViaje
 import com.pointguatemala.transportesvictoria.data.model.EmpresasResponse
+import com.pointguatemala.transportesvictoria.data.model.AyudaResponse
 import com.pointguatemala.transportesvictoria.data.model.TerminosResponse
 import com.pointguatemala.transportesvictoria.data.model.RegistroRequest
 import com.pointguatemala.transportesvictoria.data.model.RegistroResponse
@@ -79,6 +80,9 @@ interface ApiService {
 
     @GET("api/terminos")
     suspend fun getTerminos(): Response<TerminosResponse>
+
+    @GET("api/ayuda")
+    suspend fun getAyuda(): Response<AyudaResponse>
 
     // ── Viajes / Solicitudes ───────────────────────────────────────────────────
 

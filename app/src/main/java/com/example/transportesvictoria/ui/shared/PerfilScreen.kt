@@ -3,6 +3,7 @@ package com.pointguatemala.transportesvictoria.ui.shared
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,15 +19,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Apartment
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -57,12 +62,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pointguatemala.transportesvictoria.R
+import com.pointguatemala.transportesvictoria.data.model.DocumentoLegalType
 import com.pointguatemala.transportesvictoria.data.model.User
 import com.pointguatemala.transportesvictoria.ui.theme.VictoriaBlack
 import com.pointguatemala.transportesvictoria.ui.theme.VictoriaDivider
@@ -76,7 +85,8 @@ fun PerfilScreen(
     user: User,
     onCambiarPassword: () -> Unit = {},
     onCerrarSesion: () -> Unit = {},
-    onVerMapa: (lat: Double, lng: Double, titulo: String, subtitulo: String?) -> Unit = { _, _, _, _ -> }
+    onVerMapa: (lat: Double, lng: Double, titulo: String, subtitulo: String?) -> Unit = { _, _, _, _ -> },
+    onVerDocumentoLegal: (DocumentoLegalType) -> Unit = {}
 ) {
     val perfilViewModel: PerfilViewModel = viewModel(factory = PerfilViewModel.Factory(user))
     val uiState by perfilViewModel.uiState.collectAsState()
@@ -332,49 +342,90 @@ fun PerfilScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // ── Botón Solicitar eliminar datos (usuario y reclutador) ─────────────
-            if (puedeEliminar && !ocultarBotonEliminar) {
-                OutlinedButton(
-                    onClick  = { mostrarDialogoEliminar = true },
-                    enabled  = !uiState.isEliminando,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .padding(horizontal = 20.dp),
-                    shape  = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.5.dp, ColorRojo),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color.White,
-                        contentColor   = ColorRojo
+            // ── Tarjeta: Legal ────────────────────────────────────────────────────
+            Spacer(modifier = Modifier.height(16.dp))
+            Card(
+                modifier  = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                shape     = RoundedCornerShape(16.dp),
+                colors    = CardDefaults.cardColors(containerColor = VictoriaGray),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Column {
+                    Text(
+                        text          = "Legal",
+                        fontSize      = 13.sp,
+                        fontWeight    = FontWeight.SemiBold,
+                        color         = Color(0xFF9E9E9E),
+                        modifier      = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 8.dp)
                     )
-                ) {
-                    if (uiState.isEliminando) {
-                        CircularProgressIndicator(
-                            color       = ColorRojo,
-                            modifier    = Modifier.size(20.dp),
-                            strokeWidth = 2.5.dp
-                        )
+
+                    LegalLinkFila(
+                        texto  = "Política de privacidad",
+                        icono  = Icons.Filled.Security,
+                        onClick = { onVerDocumentoLegal(DocumentoLegalType.POLITICA_PRIVACIDAD) }
+                    )
+                    HorizontalDivider(color = VictoriaDivider, thickness = 1.dp)
+
+                    LegalLinkFila(
+                        texto  = "Acuerdo de uso",
+                        icono  = Icons.Filled.Description,
+                        onClick = { onVerDocumentoLegal(DocumentoLegalType.ACUERDO_USO) }
+                    )
+                    HorizontalDivider(color = VictoriaDivider, thickness = 1.dp)
+
+                    LegalLinkFila(
+                        texto  = "Términos y condiciones",
+                        icono  = Icons.Filled.VerifiedUser,
+                        onClick = { onVerDocumentoLegal(DocumentoLegalType.TERMINOS_CONDICIONES) }
+                    )
+
+                    // ── Divisor + Botón eliminar (dentro de la caja, solo si aplica) ──
+                    if (puedeEliminar && !ocultarBotonEliminar) {
+                        HorizontalDivider(color = VictoriaDivider, thickness = 1.dp)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedButton(
+                            onClick  = { mostrarDialogoEliminar = true },
+                            enabled  = !uiState.isEliminando,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .padding(horizontal = 16.dp),
+                            shape  = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, ColorRojo),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = Color.White,
+                                contentColor   = ColorRojo
+                            )
+                        ) {
+                            if (uiState.isEliminando) {
+                                CircularProgressIndicator(
+                                    color       = ColorRojo,
+                                    modifier    = Modifier.size(20.dp),
+                                    strokeWidth = 2.5.dp
+                                )
+                            } else {
+                                Icon(
+                                    imageVector        = Icons.Filled.DeleteForever,
+                                    contentDescription = null,
+                                    modifier           = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.size(8.dp))
+                                Text(
+                                    text       = "Solicitar eliminar datos",
+                                    fontSize   = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
                     } else {
-                        Icon(
-                            imageVector        = Icons.Filled.DeleteForever,
-                            contentDescription = null,
-                            modifier           = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.size(8.dp))
-                        Text(
-                            text       = "Solicitar eliminar datos",
-                            fontSize   = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
-
-                Spacer(modifier = Modifier.height(12.dp))
             }
 
             // ── Botón Cerrar sesión ───────────────────────────────────────────────
+            Spacer(modifier = Modifier.height(20.dp))
             Button(
                 onClick  = { mostrarDialogoCerrarSesion = true },
                 modifier = Modifier
@@ -603,6 +654,42 @@ private fun PerfilCard(titulo: String, content: @Composable () -> Unit) {
             Spacer(modifier = Modifier.height(10.dp))
             content()
         }
+    }
+}
+
+// ── Fila de enlace legal ──────────────────────────────────────────────────────
+@Composable
+private fun LegalLinkFila(texto: String, icono: ImageVector, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(46.dp)
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = texto }
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector        = icono,
+            contentDescription = null,
+            tint               = VictoriaYellow,
+            modifier           = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text           = texto,
+            fontSize       = 15.sp,
+            fontWeight     = FontWeight.Medium,
+            color          = Color(0xFF1565C0),
+            textDecoration = TextDecoration.Underline,
+            modifier       = Modifier.weight(1f)
+        )
+        Icon(
+            imageVector        = Icons.AutoMirrored.Filled.ArrowForwardIos,
+            contentDescription = null,
+            tint               = Color(0xFF9E9E9E),
+            modifier           = Modifier.size(12.dp)
+        )
     }
 }
 

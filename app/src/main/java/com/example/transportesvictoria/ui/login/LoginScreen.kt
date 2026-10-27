@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -77,7 +78,8 @@ fun LoginScreen(
     viewModel: LoginViewModel = viewModel(),
     onLoginSuccess: (LoginResponse) -> Unit,
     onRegistro: () -> Unit = {},
-    onRecuperarPassword: () -> Unit = {}
+    onRecuperarPassword: () -> Unit = {},
+    onAyuda: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -149,14 +151,30 @@ fun LoginScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
 
-                    // Título
-                    Text(
-                        text = "Iniciar Sesión",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = VictoriaBlack,
-                        textAlign = TextAlign.Center
-                    )
+                    // Título + botón de ayuda
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text       = "Iniciar Sesión",
+                            fontSize   = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color      = VictoriaBlack,
+                            textAlign  = TextAlign.Center,
+                            modifier   = Modifier
+                                .fillMaxWidth()
+                                .align(Alignment.Center)
+                        )
+                        IconButton(
+                            onClick  = onAyuda,
+                            modifier = Modifier.align(Alignment.CenterEnd)
+                        ) {
+                            Icon(
+                                imageVector        = Icons.AutoMirrored.Filled.Help,
+                                contentDescription = "Ayuda",
+                                tint               = Color(0xFF9E9E9E),
+                                modifier           = Modifier.size(28.dp)
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(20.dp))
 

@@ -47,6 +47,9 @@ import com.pointguatemala.transportesvictoria.ui.login.LoginViewModel
 import com.pointguatemala.transportesvictoria.ui.login.RecuperarPasswordScreen
 import com.pointguatemala.transportesvictoria.ui.registro.RegistroScreen
 import com.pointguatemala.transportesvictoria.ui.registro.TerminosScreen
+import com.pointguatemala.transportesvictoria.data.model.DocumentoLegalType
+import com.pointguatemala.transportesvictoria.ui.legal.DocumentoLegalScreen
+import com.pointguatemala.transportesvictoria.ui.login.AyudaScreen
 import com.pointguatemala.transportesvictoria.ui.shared.CambiarPasswordScreen
 import com.pointguatemala.transportesvictoria.ui.shared.MapaScreen
 import com.pointguatemala.transportesvictoria.ui.shared.NavBarInferior
@@ -75,6 +78,7 @@ sealed class Pantalla {
     object Login                                           : Pantalla()
     object Registro                                        : Pantalla()
     object Terminos                                        : Pantalla()
+    object Ayuda                                           : Pantalla()
     object Usuario                                         : Pantalla()
     object Conductor                                       : Pantalla()
     object Reclutador                                      : Pantalla()
@@ -84,7 +88,8 @@ sealed class Pantalla {
     object Soporte                                         : Pantalla()
     object Perfil                                          : Pantalla()
     object RecuperarPassword                               : Pantalla()
-    object CambiarPassword                                 : Pantalla()
+    object CambiarPassword                                      : Pantalla()
+    data class DocumentoLegal(val tipo: DocumentoLegalType)     : Pantalla()
     data class Mapa(
         val lat: Double,
         val lng: Double,
@@ -181,11 +186,13 @@ fun AppNavigation() {
                         pantallaActual !is Pantalla.Login &&
                         pantallaActual !is Pantalla.Registro &&
                         pantallaActual !is Pantalla.Terminos &&
+                        pantallaActual !is Pantalla.Ayuda &&
                         pantallaActual !is Pantalla.RecuperarPassword &&
                         pantallaActual !is Pantalla.CambiarPassword &&
                         pantallaActual !is Pantalla.SolicitarViaje &&
                         pantallaActual !is Pantalla.DetalleSolicitud &&
                         pantallaActual !is Pantalla.ConductorDetalle &&
+                        pantallaActual !is Pantalla.DocumentoLegal &&
                         pantallaActual !is Pantalla.Mapa
 
     val tabActual = when (pantallaActual) {
@@ -234,7 +241,15 @@ fun AppNavigation() {
                     LoginScreen(
                         onLoginSuccess      = ::onLoginSuccess,
                         onRegistro          = { pantallaActual = Pantalla.Registro },
-                        onRecuperarPassword = { pantallaActual = Pantalla.RecuperarPassword }
+                        onRecuperarPassword = { pantallaActual = Pantalla.RecuperarPassword },
+                        onAyuda             = { pantallaActual = Pantalla.Ayuda }
+                    )
+                }
+
+                // ── Ayuda (sin autenticación) ─────────────────────────────────
+                is Pantalla.Ayuda -> {
+                    AyudaScreen(
+                        onVolver = { pantallaActual = Pantalla.Login }
                     )
                 }
 
@@ -338,10 +353,11 @@ fun AppNavigation() {
                 is Pantalla.Perfil -> {
                     loginResponse?.user?.let { user ->
                         PerfilScreen(
-                            user              = user,
-                            onCambiarPassword = { pantallaActual = Pantalla.CambiarPassword },
-                            onVerMapa         = onVerMapa,
-                            onCerrarSesion    = {
+                            user                = user,
+                            onCambiarPassword   = { pantallaActual = Pantalla.CambiarPassword },
+                            onVerMapa           = onVerMapa,
+                            onVerDocumentoLegal = { tipo -> pantallaActual = Pantalla.DocumentoLegal(tipo) },
+                            onCerrarSesion      = {
                                 scope.launch { PerfilRepository().logout() }
                                 SessionManager.clear()
                                 loginViewModel.resetLoginResponse()
@@ -350,6 +366,14 @@ fun AppNavigation() {
                             }
                         )
                     }
+                }
+
+                // ── Documento legal ───────────────────────────────────────────
+                is Pantalla.DocumentoLegal -> {
+                    DocumentoLegalScreen(
+                        tipo     = pantalla.tipo,
+                        onVolver = { pantallaActual = Pantalla.Perfil }
+                    )
                 }
 
                 // ── Cambiar contraseña ────────────────────────────────────────
