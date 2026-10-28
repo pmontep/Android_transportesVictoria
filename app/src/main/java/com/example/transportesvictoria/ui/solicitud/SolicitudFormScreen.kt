@@ -425,67 +425,85 @@ private fun FormularioContenido(
     FormLabel(texto = "Ruta", requerido = true)
     Spacer(modifier = Modifier.height(6.dp))
 
-    ExposedDropdownMenuBox(
-        expanded          = rutaExpandida,
-        onExpandedChange  = { rutaExpandida = it }
-    ) {
+    if (uiState.rutas.size == 1) {
+        // Una sola ruta: campo de solo lectura, sin dropdown
+        val ruta = uiState.rutas.first()
         OutlinedTextField(
-            value         = uiState.rutaSeleccionada?.nombre ?: "",
+            value         = ruta.nombre,
             onValueChange = {},
             readOnly      = true,
-            placeholder   = {
-                Text("Selecciona una ruta", color = VictoriaGrayMid, fontSize = 13.sp)
-            },
-            trailingIcon  = {
-                ExposedDropdownMenuDefaults.TrailingIcon(expanded = rutaExpandida)
-            },
-            isError        = uiState.rutaError,
-            supportingText = if (uiState.rutaError) {
-                { Text("Selecciona una ruta", color = Color(0xFFEF5350), fontSize = 11.sp) }
-            } else null,
-            modifier = Modifier
-                .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth(),
-            shape  = RoundedCornerShape(10.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor      = VictoriaYellow,
-                unfocusedBorderColor    = VictoriaDivider,
-                focusedContainerColor   = Color.White,
-                unfocusedContainerColor = Color.White,
-                errorContainerColor     = Color.White
+            enabled       = false,
+            modifier      = Modifier.fillMaxWidth(),
+            shape         = RoundedCornerShape(10.dp),
+            colors        = OutlinedTextFieldDefaults.colors(
+                disabledBorderColor    = VictoriaDivider,
+                disabledContainerColor = Color.White,
+                disabledTextColor      = VictoriaBlack
             )
         )
-
-        ExposedDropdownMenu(
+    } else {
+        ExposedDropdownMenuBox(
             expanded          = rutaExpandida,
-            onDismissRequest  = { rutaExpandida = false },
-            containerColor    = Color.White
+            onExpandedChange  = { rutaExpandida = it }
         ) {
-            uiState.rutas.forEach { ruta ->
-                DropdownMenuItem(
-                    text = {
-                        Column {
-                            Text(
-                                text       = ruta.nombre,
-                                color      = VictoriaBlack,
-                                fontSize   = 13.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            if (!ruta.direccion.isNullOrBlank()) {
-                                Text(
-                                    text     = "${ruta.direccion} · ${ruta.departamento ?: ""}".trimEnd(' ', '·'),
-                                    color    = VictoriaGrayMid,
-                                    fontSize = 11.sp
-                                )
-                            }
-                        }
-                    },
-                    onClick = {
-                        viewModel.seleccionarRuta(ruta)
-                        rutaExpandida = false
-                    }
+            OutlinedTextField(
+                value         = uiState.rutaSeleccionada?.nombre ?: "",
+                onValueChange = {},
+                readOnly      = true,
+                placeholder   = {
+                    Text("Selecciona una ruta", color = VictoriaGrayMid, fontSize = 13.sp)
+                },
+                trailingIcon  = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = rutaExpandida)
+                },
+                isError        = uiState.rutaError,
+                supportingText = if (uiState.rutaError) {
+                    { Text("Selecciona una ruta", color = Color(0xFFEF5350), fontSize = 11.sp) }
+                } else null,
+                modifier = Modifier
+                    .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
+                    .fillMaxWidth(),
+                shape  = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor      = VictoriaYellow,
+                    unfocusedBorderColor    = VictoriaDivider,
+                    focusedContainerColor   = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    errorContainerColor     = Color.White
                 )
-                HorizontalDivider(color = VictoriaDivider, thickness = 0.5.dp)
+            )
+
+            ExposedDropdownMenu(
+                expanded          = rutaExpandida,
+                onDismissRequest  = { rutaExpandida = false },
+                containerColor    = Color.White
+            ) {
+                uiState.rutas.forEach { ruta ->
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Text(
+                                    text       = ruta.nombre,
+                                    color      = VictoriaBlack,
+                                    fontSize   = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                if (!ruta.direccion.isNullOrBlank()) {
+                                    Text(
+                                        text     = "${ruta.direccion} · ${ruta.departamento ?: ""}".trimEnd(' ', '·'),
+                                        color    = VictoriaGrayMid,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                        },
+                        onClick = {
+                            viewModel.seleccionarRuta(ruta)
+                            rutaExpandida = false
+                        }
+                    )
+                    HorizontalDivider(color = VictoriaDivider, thickness = 0.5.dp)
+                }
             }
         }
     }
@@ -499,47 +517,74 @@ private fun FormularioContenido(
         FormLabel(texto = "Horario disponible", requerido = true)
         Spacer(modifier = Modifier.height(8.dp))
 
-        Row(
-            modifier            = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            ruta.horarios.forEach { hora ->
-                val seleccionada = uiState.horaSeleccionada == hora
-                FilterChip(
-                    selected = seleccionada,
-                    onClick  = { viewModel.seleccionarHora(hora) },
-                    label    = {
-                        Text(
-                            text       = hora,
-                            fontSize   = 13.sp,
-                            fontWeight = if (seleccionada) FontWeight.Bold else FontWeight.Normal
-                        )
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor  = VictoriaYellow,
-                        selectedLabelColor      = VictoriaBlack,
-                        containerColor          = Color.White,
-                        labelColor              = VictoriaGrayMid
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        enabled              = true,
-                        selected             = seleccionada,
-                        borderColor          = VictoriaDivider,
-                        selectedBorderColor  = VictoriaYellow,
-                        borderWidth          = 1.dp,
-                        selectedBorderWidth  = 1.5.dp
+        when {
+            ruta.horarios.isEmpty() -> {
+                Text(
+                    text     = "Esta ruta no tiene horarios disponibles.",
+                    color    = VictoriaGrayMid,
+                    fontSize = 13.sp
+                )
+            }
+            ruta.horarios.size == 1 -> {
+                // Un solo horario: campo de solo lectura, sin chips
+                OutlinedTextField(
+                    value         = ruta.horarios.first(),
+                    onValueChange = {},
+                    readOnly      = true,
+                    enabled       = false,
+                    modifier      = Modifier.fillMaxWidth(),
+                    shape         = RoundedCornerShape(10.dp),
+                    colors        = OutlinedTextFieldDefaults.colors(
+                        disabledBorderColor    = VictoriaDivider,
+                        disabledContainerColor = Color.White,
+                        disabledTextColor      = VictoriaBlack
                     )
                 )
             }
-        }
+            else -> {
+                Row(
+                    modifier              = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ruta.horarios.forEach { hora ->
+                        val seleccionada = uiState.horaSeleccionada == hora
+                        FilterChip(
+                            selected = seleccionada,
+                            onClick  = { viewModel.seleccionarHora(hora) },
+                            label    = {
+                                Text(
+                                    text       = hora,
+                                    fontSize   = 13.sp,
+                                    fontWeight = if (seleccionada) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor  = VictoriaYellow,
+                                selectedLabelColor      = VictoriaBlack,
+                                containerColor          = Color.White,
+                                labelColor              = VictoriaGrayMid
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled              = true,
+                                selected             = seleccionada,
+                                borderColor          = VictoriaDivider,
+                                selectedBorderColor  = VictoriaYellow,
+                                borderWidth          = 1.dp,
+                                selectedBorderWidth  = 1.5.dp
+                            )
+                        )
+                    }
+                }
 
-        if (uiState.horaError) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text     = "Selecciona un horario",
-                color    = Color(0xFFEF5350),
-                fontSize = 11.sp
-            )
+                if (uiState.horaError) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text     = "Selecciona un horario",
+                        color    = Color(0xFFEF5350),
+                        fontSize = 11.sp
+                    )
+                }
+            }
         }
     }
 

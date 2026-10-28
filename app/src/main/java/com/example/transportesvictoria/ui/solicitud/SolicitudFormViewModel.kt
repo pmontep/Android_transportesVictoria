@@ -55,12 +55,14 @@ class SolicitudFormViewModel : ViewModel() {
 
             repository.getMisRutas().fold(
                 onSuccess = { rutas ->
+                    val rutaUnica = if (rutas.size == 1) rutas.first() else null
+                    val horaUnica = if (rutaUnica != null && rutaUnica.horarios.size == 1) rutaUnica.horarios.first() else null
                     _uiState.update {
                         it.copy(
                             isLoadingRutas   = false,
                             rutas            = rutas,
-                            // Si solo hay una ruta la preseleccionamos
-                            rutaSeleccionada = if (rutas.size == 1) rutas.first() else null
+                            rutaSeleccionada = rutaUnica,
+                            horaSeleccionada = horaUnica
                         )
                     }
                 },
@@ -77,8 +79,7 @@ class SolicitudFormViewModel : ViewModel() {
         _uiState.update {
             it.copy(
                 rutaSeleccionada = ruta,
-                // Limpiar hora si cambia la ruta (los horarios pueden ser distintos)
-                horaSeleccionada = null,
+                horaSeleccionada = if (ruta.horarios.size == 1) ruta.horarios.first() else null,
                 rutaError        = false
             )
         }
