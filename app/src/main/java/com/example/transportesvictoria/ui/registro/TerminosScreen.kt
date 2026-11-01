@@ -1,5 +1,6 @@
 package com.pointguatemala.transportesvictoria.ui.registro
 
+import android.widget.TextView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -29,12 +30,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.text.HtmlCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pointguatemala.transportesvictoria.R
 import com.pointguatemala.transportesvictoria.ui.theme.VictoriaBlack
@@ -181,12 +185,7 @@ fun TerminosScreen(
                             .padding(16.dp)
                             .verticalScroll(rememberScrollState())
                     ) {
-                        Text(
-                            text      = uiState.texto!!,
-                            fontSize  = 14.sp,
-                            color     = VictoriaBlack,
-                            lineHeight = 22.sp
-                        )
+                        TerminosHtmlText(html = uiState.texto!!)
                     }
                 }
             }
@@ -214,4 +213,30 @@ fun TerminosScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
     }
+}
+
+@Composable
+private fun TerminosHtmlText(html: String) {
+    val victoriaBlackArgb = VictoriaBlack.toArgb()
+    AndroidView(
+        factory = { ctx ->
+            TextView(ctx).apply {
+                textSize          = 17f
+                setTextColor(victoriaBlackArgb)
+                isScrollContainer = false
+                setLineSpacing(4f, 1f)
+            }
+        },
+        update = { tv ->
+            val cleaned = html
+                .replace(Regex("<font\\b[^>]*>", RegexOption.IGNORE_CASE), "")
+                .replace(Regex("</font>", RegexOption.IGNORE_CASE), "")
+            try {
+                tv.text = HtmlCompat.fromHtml(cleaned, HtmlCompat.FROM_HTML_MODE_COMPACT)
+            } catch (_: Exception) {
+                tv.text = html
+            }
+        },
+        modifier = Modifier.fillMaxWidth()
+    )
 }

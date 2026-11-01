@@ -195,7 +195,7 @@ private fun HtmlText(html: String) {
     AndroidView(
         factory = { ctx ->
             TextView(ctx).apply {
-                textSize         = 15f
+                textSize          = 17f
                 setTextColor(victoriaBlackArgb)
                 isScrollContainer = false
                 setLineSpacing(4f, 1f)
